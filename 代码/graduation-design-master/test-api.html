@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>API测试</title>
+</head>
+<body>
+    <h1>API测试</h1>
+    <button onclick="testDepartments()">测试科室列表</button>
+    <button onclick="testDoctors()">测试医生列表</button>
+    <div id="result"></div>
+
+    <script>
+        async function testDepartments() {
+            try {
+                const response = await fetch('http://localhost:9281/ai/chat/departments');
+                const data = await response.json();
+                document.getElementById('result').innerHTML = '<h2>科室列表:</h2><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            } catch (error) {
+                document.getElementById('result').innerHTML = '<h2>错误:</h2><pre>' + error.toString() + '</pre>';
+            }
+        }
+
+        async function testDoctors() {
+            try {
+                const response = await fetch('http://localhost:9281/ai/chat/doctors?department=神经内科');
+                const data = await response.json();
+                document.getElementById('result').innerHTML = '<h2>医生列表:</h2><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            } catch (error) {
+                document.getElementById('result').innerHTML = '<h2>错误:</h2><pre>' + error.toString() + '</pre>';
+            }
+        }
+    </script>
+</body>
+</html>

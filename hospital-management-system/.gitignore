@@ -1,0 +1,27 @@
+# Backend build artifacts
+backend/target/
+backend/bin/
+backend/logs/
+
+# Frontend build artifacts
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Selenium test binaries
+selenium-test/lib/
+selenium-test/*.exe
+selenium-test/*.class

@@ -1,0 +1,6 @@
+@echo off
+echo Setting environment variables...
+set NODE_OPTIONS=--openssl-legacy-provider
+echo Starting Vue development server...
+npm run dev
+pause

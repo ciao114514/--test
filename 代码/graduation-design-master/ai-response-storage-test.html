@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI回复存储和匹配测试</title>
+</head>
+<body>
+    <h1>AI回复存储和匹配测试</h1>
+    
+    <div>
+        <h2>模拟AI回复内容</h2>
+        <textarea id="aiResponse" rows="15" cols="100">
+很抱歉听到您正在发烧。根据您的情况，我为您提供以下专业的分析和建议：
+
+##  可能相关的科室推荐
+
+根据您的症状"发烧"，以下科室可能适合您：
+
+**1. 发热门诊** ️
+- **医生**：111 (主任医师)
+- **专长**：专门处理发热相关病症
+- **这是最直接对口的科室**
+
+**2. 普通外科**
+- **医生**：皇甫谧 (主任医师)
+- **如果伴有外科感染症状可考虑**
+
+##  居家护理建议
+
+在就医前，您可以：
+- 多休息，保证充足睡眠
+- 多补充水分，防止脱水
+- 物理降温：用温水擦拭身体
+- 监测体温变化，记录发烧规律
+- 饮食清淡，易消化
+
+## ️ 重要提醒
+
+**以下情况请立即就医：**
+- 高烧持续不退（超过39C）
+- 伴有意识模糊、呼吸困难
+- 出现皮疹或抽搐
+- 发烧超过3天无好转
+
+##  下一步建议
+
+**建议您尽快到发热门诊就诊**，以便医生进行专业诊断和治疗。
+
+如果需要挂号，请告诉我"我要挂号"或"我想预约医生"，我可以帮您连接到挂号系统。
+
+> **温馨提示**：以上建议仅供参考，具体诊断和治疗请以医生的面诊结果为准。
+        </textarea>
+        <br><br>
+        <button onclick="saveAiResponse()">保存AI回复</button>
+    </div>
+    
+    <div>
+        <h2>科室和医生匹配测试</h2>
+        <button onclick="testMatching()">测试科室和医生匹配</button>
+    </div>
+    
+    <div>
+        <h2>模拟科室列表</h2>
+        <textarea id="departments" rows="5" cols="50">
+["发热门诊", "普通外科", "内科", "儿科", "眼科"]
+        </textarea>
+    </div>
+    
+    <div>
+        <h2>模拟医生列表</h2>
+        <textarea id="doctors" rows="5" cols="50">
+[
+  {"dId": 1, "dName": "111", "dPost": "主任医师"},
+  {"dId": 2, "dName": "皇甫谧", "dPost": "主任医师"},
+  {"dId": 3, "dName": "华佗", "dPost": "副主任医师"}
+]
+        </textarea>
+    </div>
+    
+    <div id="results" style="margin-top: 20px;">
+        <h2>测试结果</h2>
+        <pre id="output"></pre>
+    </div>
+
+    <script>
+        let latestAiResponse = "";
+        
+        function saveAiResponse() {
+            latestAiResponse = document.getElementById('aiResponse').value;
+            document.getElementById('output').textContent = "AI回复已保存\n\n" + latestAiResponse;
+        }
+        
+        function testMatching() {
+            if (!latestAiResponse) {
+                document.getElementById('output').textContent = "请先保存AI回复";
+                return;
+            }
+            
+            const departments = JSON.parse(document.getElementById('departments').value);
+            const doctors = JSON.parse(document.getElementById('doctors').value);
+            
+            const output = document.getElementById('output');
+            output.textContent = "开始测试科室和医生匹配...\n\n";
+            
+            // 测试科室匹配
+            output.textContent += "1. 测试科室匹配:\n";
+            const departmentMatches = latestAiResponse.matchAll(/^(?:\*\*[\d、.]\s*)?(?:\*\*)?([^*。\n\r\t]{2,15}(?:科|门诊|内科|外科|妇科|儿科|眼科|耳鼻喉科|口腔科|皮肤科|精神科|肿瘤科|中医科|风湿科|传染科))(?:\*\*)?/gm);
+            
+            let suggestedDepartment = null;
+            for (const match of departmentMatches) {
+                if (match[1]) {
+                    suggestedDepartment = match[1];
+                    output.textContent += `- 匹配到科室: ${suggestedDepartment}\n`;
+                    break;
+                }
+            }
+            
+            if (suggestedDepartment) {
+                let matchedDepartment = null;
+                for (const dept of departments) {
+                    output.textContent += `  比较科室: "${dept}" 与推荐科室: "${suggestedDepartment}"\n`;
+                    // 精确匹配
+                    if (dept === suggestedDepartment) {
+                        matchedDepartment = dept;
+                        output.textContent += `  精确匹配成功: ${dept}\n`;
+                        break;
+                    }
+                    // 包含匹配
+                    if (dept.includes(suggestedDepartment) || suggestedDepartment.includes(dept)) {
+                        matchedDepartment = dept;
+                        output.textContent += `  包含匹配成功: ${dept}\n`;
+                        break;
+                    }
+                    // 部分匹配（去掉"科"字后匹配）
+                    if (dept.replace('科', '') === suggestedDepartment.replace('科', '')) {
+                        matchedDepartment = dept;
+                        output.textContent += `  部分匹配成功: ${dept}\n`;
+                        break;
+                    }
+                }
+                
+                // 如果仍未找到匹配科室，则尝试模糊匹配
+                if (!matchedDepartment) {
+                    output.textContent += '  尝试模糊匹配科室\n';
+                    for (const dept of departments) {
+                        // 将两个字符串都转换为小写以进行不区分大小写的比较
+                        const lowerDept = dept.toLowerCase();
+                        const lowerSuggested = suggestedDepartment.toLowerCase();
+                        
+                        // 检查是否至少有一半的字符匹配
+                        let matchCount = 0;
+                        for (let i = 0; i < lowerSuggested.length; i++) {
+                            if (lowerDept.includes(lowerSuggested.charAt(i))) {
+                                matchCount++;
+                            }
+                        }
+                        
+                        // 如果匹配度超过50%，则认为是匹配的科室
+                        if (matchCount / lowerSuggested.length > 0.5) {
+                            matchedDepartment = dept;
+                            output.textContent += `  模糊匹配成功: ${dept} 匹配度: ${matchCount / lowerSuggested.length}\n`;
+                            break;
+                        }
+                    }
+                }
+                
+                if (matchedDepartment) {
+                    output.textContent += `科室匹配结果: ${matchedDepartment}\n\n`;
+                    
+                    // 测试医生匹配
+                    output.textContent += "2. 测试医生匹配:\n";
+                    const doctorMatch = latestAiResponse.match(/[-*]\s*\*\*医生\*\*：([^\s，,。！!\(\)\n\r\t]{2,10})(?:\s*\([^)]*\))?/);
+                    if (doctorMatch && doctorMatch[1]) {
+                        const suggestedDoctor = doctorMatch[1];
+                        output.textContent += `- 匹配到医生: ${suggestedDoctor}\n`;
+                        
+                        let matchedDoctor = null;
+                        for (const doctor of doctors) {
+                            output.textContent += `  比较医生: "${doctor.dName}" 与推荐医生: "${suggestedDoctor}"\n`;
+                            // 精确匹配
+                            if (doctor.dName === suggestedDoctor) {
+                                matchedDoctor = doctor;
+                                output.textContent += `  精确匹配成功: ${doctor.dName}\n`;
+                                break;
+                            }
+                            // 包含匹配
+                            if (doctor.dName.includes(suggestedDoctor) || suggestedDoctor.includes(doctor.dName)) {
+                                matchedDoctor = doctor;
+                                output.textContent += `  包含匹配成功: ${doctor.dName}\n`;
+                                break;
+                            }
+                            // 姓名匹配（只比较前两个字符）
+                            if (doctor.dName.length >= 2 && suggestedDoctor.length >= 2 && 
+                                doctor.dName.substring(0, 2) === suggestedDoctor.substring(0, 2)) {
+                                matchedDoctor = doctor;
+                                output.textContent += `  姓名匹配成功: ${doctor.dName}\n`;
+                                break;
+                            }
+                        }
+                        
+                        // 如果仍未找到匹配医生，则尝试模糊匹配
+                        if (!matchedDoctor) {
+                            output.textContent += '  尝试模糊匹配医生\n';
+                            for (const doctor of doctors) {
+                                // 将两个字符串都转换为小写以进行不区分大小写的比较
+                                const lowerDoctorName = doctor.dName.toLowerCase();
+                                const lowerSuggested = suggestedDoctor.toLowerCase();
+                                
+                                // 检查是否至少有一半的字符匹配
+                                let matchCount = 0;
+                                for (let i = 0; i < lowerSuggested.length; i++) {
+                                    if (lowerDoctorName.includes(lowerSuggested.charAt(i))) {
+                                        matchCount++;
+                                    }
+                                }
+                                
+                                // 如果匹配度超过50%，则认为是匹配的医生
+                                if (matchCount / lowerSuggested.length > 0.5) {
+                                    matchedDoctor = doctor;
+                                    output.textContent += `  医生模糊匹配成功: ${doctor.dName} 匹配度: ${matchCount / lowerSuggested.length}\n`;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if (matchedDoctor) {
+                            output.textContent += `医生匹配结果: ${matchedDoctor.dName} (ID: ${matchedDoctor.dId})\n`;
+                        } else {
+                            output.textContent += "未找到匹配的医生\n";
+                        }
+                    } else {
+                        output.textContent += "未在AI回复中找到医生信息\n";
+                    }
+                } else {
+                    output.textContent += "未找到匹配的科室\n";
+                }
+            } else {
+                output.textContent += "未在AI回复中找到科室信息\n";
+            }
+        }
+    </script>
+</body>
+</html>

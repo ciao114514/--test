@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.hospital.mapper.SetmealOrderMapper">
+
+
+    <resultMap id="orderOidMap" type="com.example.hospital.pojo.SetmealOrders">
+        <id property="oId" column="o_id" />
+        <result property="pId" column="p_id" />
+        <result property="dId" column="d_id" />
+        <result property="oStart" column="o_start" />
+        <result property="oEnd" column="o_end" />
+        <result property="oRecord" column="o_record"/>
+        <result property="oDrug" column="o_drug"/>
+        <result property="oCheck" column="o_check"/>
+        <result property="oTotalPrice" column="o_total_price"/>
+        <result property="oAdvice" column="o_advice"/>
+
+        <!--一对一的关系映射，配置封装user的内容 column中指名从表的外键 property="user"指的是单个实体类的引用-->
+        <association property="patient" javaType="com.example.hospital.pojo.Patient">
+            <result property="pId" column="p_id" />
+            <result property="pName" column="p_name"/>
+            <result property="pPhone" column="p_phone"/>
+            <result property="pEmail" column="p_email"/>
+            <result property="pGender" column="p_gender"/>
+            <result property="pAge" column="p_age"/>
+        </association>
+    </resultMap>
+    <select id="findOrderByssOid" resultMap="orderOidMap">
+        select * from setmeal_orders o,patient p where o.p_id = p.p_id and o.o_id=#{o_id}
+    </select>
+
+
+    <resultMap id="orderPatientDoctorMap" type="com.example.hospital.pojo.SetmealOrders">
+        <id property="oId" column="o_id" />
+        <result property="pId" column="p_id" />
+        <result property="dId" column="d_id" />
+        <result property="oStart" column="o_start" />
+        <result property="oEnd" column="o_end" />
+        <result property="oTotalPrice" column="o_total_price" />
+        <result property="oPriceState" column="o_price_state" />
+        <result property="oState" column="o_state" />
+        <result property="dName" column="dName" />
+        <result property="pName" column="pName" />
+        <result property="tid" column="tid" />
+        <result property="tname" column="tname" />
+        <result property="tstate" column="tstate" />
+        <!--一对一的关系映射，配置封装user的内容 column中指名从表的外键 property="user"指的是单个实体类的引用-->
+        <association property="doctor" javaType="com.example.hospital.pojo.Doctor">
+            <result property="dId" column="d_id" />
+            <result property="dName" column="d_name" />
+            <result property="dSection" column="dSection" />
+        </association>
+        <association property="patient" javaType="com.example.hospital.pojo.Patient">
+            <result property="pId" column="p_id" />
+            <result property="pName" column="p_name" />
+        </association>
+        <association property="setmeal" javaType="com.example.hospital.pojo.Setmeal">
+            <result property="tid" column="tid" />
+            <result property="tname" column="tname" />
+            <result property="name" column="name" />
+        </association>
+    </resultMap>
+
+
+    <select id="selectBypId_oStart_tid" parameterType="com.example.hospital.pojo.SetmealOrders" resultMap="orderPatientDoctorMap">
+
+        SELECT o.o_id,o.d_id,s.tname as tname,o.p_id,p.p_name as pName,o.o_start,o.o_end,o.o_total_price,o.o_price_state,o.o_state,o.tid,o.tname,o.tstate
+        from setmeal_orders o JOIN setmeal s JOIN patient p
+                                          on o.tid=s.tid
+                                              and o.p_id=p.p_id
+        where 1=1
+          and o.p_id=#{pId}
+          and o.o_start like #{oStart}"%"
+       and o.tid=#{tid}
+        ORDER BY o.o_end DESC
+
+    </select>
+
+    <select id="selectSetmealDoctorById" parameterType="com.example.hospital.pojo.Model" resultType="com.example.hospital.pojo.SetmealDoctor">
+
+        select
+            a.tid,
+            a.tname,
+            c.ch_id chid,
+            c.ch_name chname,
+            c.ch_price chprice,
+            d.d_id did,
+            d.d_name dname,
+            d.d_section dsection,
+            r.ar_id arid
+        from setmeal  a
+                 left join setmeal_checks b on a.tid = b.tid
+                 left join checks c on b.ch_id = c.ch_id
+                 left join doctor d on d.d_section=c.kname
+                 left join arrange r on r.d_id = d.d_id and r.ar_time=#{artime}
+        where a.tid =#{tid}
+
+    </select>
+
+    <select id="selectByotype" resultMap="orderPatientDoctorMap">
+        SELECT o.o_id,o.d_id,s.tname as tname,o.p_id,p.p_name as pName,o.o_start,o.o_end,o.o_total_price,o.o_price_state,o.o_state,o.tid,o.tname,o.tstate
+        from setmeal_orders o
+            JOIN setmeal s JOIN patient p
+                                                  on o.tid=s.tid
+                                                      and o.p_id=p.p_id
+        where 1=1
+          and o.otype=#{otype}
+
+        ORDER BY o.o_end DESC
+    </select>
+
+</mapper>

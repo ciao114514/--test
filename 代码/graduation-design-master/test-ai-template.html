@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI回复模板测试</title>
+</head>
+<body>
+    <h1>AI回复模板测试</h1>
+    <div id="ai-response">
+        <h2>AI的回复如下：</h2>
+        <pre>
+很抱歉听到您正在发烧。根据您的情况，我为您提供以下专业的分析和建议：
+
+##  可能相关的科室推荐
+
+根据您的症状"发烧"，以下科室可能适合您：
+
+**1. 发热门诊** ️
+- **医生**：111 (主任医师)
+- **专长**：专门处理发热相关病症
+- **这是最直接对口的科室**
+
+**2. 普通外科**
+- **医生**：皇甫谧 (主任医师)
+- **如果伴有外科感染症状可考虑**
+
+##  居家护理建议
+
+在就医前，您可以：
+- 多休息，保证充足睡眠
+- 多补充水分，防止脱水
+- 物理降温：用温水擦拭身体
+- 监测体温变化，记录发烧规律
+- 饮食清淡，易消化
+
+## ️ 重要提醒
+
+**以下情况请立即就医：**
+- 高烧持续不退（超过39C）
+- 伴有意识模糊、呼吸困难
+- 出现皮疹或抽搐
+- 发烧超过3天无好转
+
+##  下一步建议
+
+**建议您尽快到发热门诊就诊**，以便医生进行专业诊断和治疗。
+
+如果需要挂号，请告诉我"我要挂号"或"我想预约医生"，我可以帮您连接到挂号系统。
+
+> **温馨提示**：以上建议仅供参考，具体诊断和治疗请以医生的面诊结果为准。
+        </pre>
+    </div>
+
+    <script>
+        // 测试正则表达式匹配
+        const aiResponse = document.querySelector('#ai-response pre').textContent;
+        
+        console.log('AI回复内容：', aiResponse);
+        
+        // 测试科室匹配
+        const departmentMatches = aiResponse.matchAll(/^(?:\*\*[\d、.]\s*)?(?:\*\*)?([^*。\n\r\t]{2,15}(?:科|门诊|内科|外科|妇科|儿科|眼科|耳鼻喉科|口腔科|皮肤科|精神科|肿瘤科|中医科|风湿科|传染科))(?:\*\*)?/gm);
+        
+        console.log('科室匹配结果：');
+        for (const match of departmentMatches) {
+            console.log('- 科室：', match[1]);
+        }
+        
+        // 测试医生匹配
+        const doctorMatches = aiResponse.match(/[-*]\s*\*\*医生\*\*：([^\s，,。！!\(\)\n\r\t]{2,10})(?:\s*\([^)]*\))?/g);
+        
+        console.log('医生匹配结果：');
+        if (doctorMatches) {
+            doctorMatches.forEach(match => {
+                console.log('- 医生匹配项：', match);
+                const doctorName = match.match(/[-*]\s*\*\*医生\*\*：([^\s，,。！!\(\)\n\r\t]{2,10})(?:\s*\([^)]*\))?/);
+                if (doctorName && doctorName[1]) {
+                    console.log('  - 医生姓名：', doctorName[1]);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

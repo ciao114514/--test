@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.hospital.mapper.OrderMapper">
+    <!--定义封装account和user的resultMap-->
+    <resultMap id="orderPatientMap" type="com.example.hospital.pojo.Orders">
+        <id property="oId" column="o_id" />
+        <result property="pId" column="p_id" />
+        <result property="dId" column="d_id" />
+        <result property="oStart" column="o_start" />
+        <result property="oState" column="d_state" />
+        <result property="countGender" column="countGender"/>
+        <!--一对一的关系映射，配置封装user的内容 column中指名从表的外键 property="user"指的是单个实体类的引用-->
+        <association property="patient" javaType="com.example.hospital.pojo.Patient">
+            <result property="pId" column="p_id" />
+            <result property="pGender" column="p_gender"/>
+        </association>
+    </resultMap>
+
+    <!--传入多个参数-->
+    <!--    1. 不需要parameterType参数-->
+    <!--    2. mapper文件用注解@Param注解参数名-->
+    <!--    3. xml文件要使用2中的参数名-->
+    <select id="orderPeople" resultType="Integer" parameterType="String">
+        select count(p_id) as countGender from orders where o_start like concat(#{o_start}, '%')
+    </select>
+
+    <select id="orderPeopleByDid" resultType="Integer">
+        select count(p_id) from orders where o_start like concat(#{o_start}, '%') and d_id=#{d_id}
+    </select>
+
+
+    <select id="orderGender" resultMap="orderPatientMap">
+        select p_gender,count(p_gender) as countGender from patient p,orders o  where p.p_id=o.p_id GROUP BY p_gender
+    </select>
+
+
+    <resultMap id="orderOidMap" type="com.example.hospital.pojo.Orders">
+        <id property="oId" column="o_id" />
+        <result property="pId" column="p_id" />
+        <result property="dId" column="d_id" />
+        <result property="oStart" column="o_start" />
+        <result property="oEnd" column="o_end" />
+        <result property="oRecord" column="o_record"/>
+        <result property="oDrug" column="o_drug"/>
+        <result property="oCheck" column="o_check"/>
+        <result property="oTotalPrice" column="o_total_price"/>
+        <result property="oAdvice" column="o_advice"/>
+        <result property="tname" column="tname" />
+        <result property="chid" column="chid" />
+
+        <result property="sg" column="sg" />
+        <result property="tz" column="tz" />
+        <result property="xy" column="xy" />
+        <result property="xl" column="xl" />
+        <result property="tl" column="tl" />
+        <result property="zr" column="zr" />
+        <result property="yr" column="yr" />
+        <result property="xj" column="xj" />
+        <result property="kc" column="kc" />
+        <result property="zy" column="zy" />
+        <result property="yy" column="yy" />
+        <result property="jzy" column="jzy" />
+        <result property="jyy" column="jyy" />
+        <result property="sj" column="sj" />
+        <result property="jzx" column="jzx" />
+        <result property="lb" column="lb" />
+        <result property="ggn" column="ggn" />
+        <result property="ygn" column="ygn" />
+        <result property="xdt" column="xdt" />
+        <result property="xn" column="xn" />
+
+
+        <!--一对一的关系映射，配置封装user的内容 column中指名从表的外键 property="user"指的是单个实体类的引用-->
+        <association property="patient" javaType="com.example.hospital.pojo.Patient">
+            <result property="pId" column="p_id" />
+            <result property="pName" column="p_name"/>
+            <result property="pPhone" column="p_phone"/>
+            <result property="pEmail" column="p_email"/>
+            <result property="pGender" column="p_gender"/>
+            <result property="pAge" column="p_age"/>
+        </association>
+        <association property="doctor" javaType="com.example.hospital.pojo.Doctor">
+            <result property="dId" column="d_id" />
+            <result property="dName" column="d_name" />
+            <result property="dSection" column="d_section" />
+            <result property="dAddress" column="d_address" />
+            <result property="dPrice" column="d_price" />
+        </association>
+
+    </resultMap>
+    <select id="findOrderByOid" resultMap="orderOidMap">
+        select * from orders o,patient p,doctor d where o.p_id = p.p_id and o.d_id=d.d_id and o.o_id=#{o_id}
+    </select>
+    <select id="findOrderBypOid" resultMap="orderOidMap">
+        select * from orders o,patient p,doctor d where o.p_id = p.p_id and o.d_id=d.d_id and o.p_oid=#{poid} order  by  chid
+    </select>
+
+    <update id="updateOrderByAdd" parameterType="com.example.hospital.pojo.Orders">
+        update orders set o_check = concat(o_check,#{oCheck}),o_drug = concat(o_drug,#{oDrug}),o_total_price = #{oTotalPrice},o_advice = #{oAdvice} where o_id=#{oId}
+    </update>
+
+
+    <resultMap id="orderSectionMap" type="com.example.hospital.pojo.Orders">
+        <id property="oId" column="o_id" />
+        <result property="dId" column="d_id" />
+        <result property="oStart" column="o_start" />
+        <result property="countSection" column="countSection"/>
+        <!--一对一的关系映射，配置封装user的内容 column中指名从表的外键 property="user"指的是单个实体类的引用-->
+        <association property="doctor" javaType="com.example.hospital.pojo.Doctor">
+            <result property="dId" column="d_id" />
+            <result property="dSection" column="d_section"/>
+        </association>
+    </resultMap>
+
+    <select id="orderSection" resultMap="orderSectionMap">
+        SELECT d.d_section,count(o.d_id) as countSection from orders o,doctor d where o.d_id=d.d_id
+        AND o_start BETWEEN #{startTime} and #{endTime}
+        GROUP BY d.d_section
+    </select>
+
+        <resultMap id="orderPatientDoctorMap" type="com.example.hospital.pojo.Orders">
+            <id property="oId" column="o_id" />
+            <result property="pId" column="p_id" />
+            <result property="dId" column="d_id" />
+            <result property="oStart" column="o_start" />
+            <result property="oEnd" column="o_end" />
+            <result property="oTotalPrice" column="o_total_price" />
+            <result property="oPriceState" column="o_price_state" />
+            <result property="oState" column="o_state" />
+            <result property="dName" column="dName" />
+            <result property="pName" column="pName" />
+            <result property="tid" column="tid" />
+            <result property="tname" column="tname" />
+            <result property="state" column="state" />
+            <result property="otype" column="otype" />
+            <result property="oDrug" column="o_drug" />
+            <result property="oTprice" column="o_tprice" />
+            <result property="oPstate" column="o_pstate" />
+            <result property="pOid" column="p_oid" />
+            <result property="chid" column="chid" />
+            <!--一对一的关系映射，配置封装user的内容 column中指名从表的外键 property="user"指的是单个实体类的引用-->
+            <association property="doctor" javaType="com.example.hospital.pojo.Doctor">
+                <result property="dId" column="d_id" />
+                <result property="dName" column="d_name" />
+                <result property="dSection" column="d_section" />
+            </association>
+            <association property="patient" javaType="com.example.hospital.pojo.Patient">
+                <result property="pId" column="p_id" />
+                <result property="pName" column="p_name" />
+            </association>
+            <association property="setmeal" javaType="com.example.hospital.pojo.Setmeal">
+                <result property="tid" column="tid" />
+                <result property="tname" column="tname" />
+                <result property="name" column="name" />
+            </association>
+        </resultMap>
+    <select id="findOrderByNull" resultMap="orderPatientDoctorMap">
+        SELECT o.o_id,d.d_name as dName,o.p_id,p.p_name as pName,o.o_start,
+               IFNULL(o.tname,d.d_section) as tname,o.p_oid,o.chid
+        from orders o JOIN doctor d JOIN patient p
+        on o.d_id=#{dId}
+        and o.d_id=d.d_id
+        and o.p_id=p.p_id
+        and o.o_start like #{oStart}"%"
+        and o.o_state=1
+        and o.state=0
+        and o.otype=#{oType}
+        ORDER BY o.o_start
+    </select>
+    <select id="findOrderByPid" resultMap="orderPatientDoctorMap">
+
+        select * from (
+                          SELECT o.o_id,o.d_id,d.d_name as dName,o.p_id,p.p_name as pName,
+                                 o.o_start,o.o_end,o.o_total_price,o.o_price_state,o.o_state,
+                                 o.tid,IFNULL(o.tname,d.d_section) as tname,o.p_oid,o.otype,o.o_drug,o.o_tprice,o.o_pstate
+                          from orders o
+                                   JOIN patient p on o.p_id=p.p_id
+                                   left  JOIN doctor d on o.d_id=d.d_id
+                                   Left JOIN setmeal s on o.tid=s.tid
+                          where 1=1  and o.otype='P' and o.p_id=#{pId}
+                          UNION all
+                          SELECT o.o_id,o.d_id,d.d_name as dName,o.p_id,p.p_name as pName,
+                                 o.o_start,o.o_end,o.o_total_price,o.o_price_state,o.o_state,
+                                 o.tid,IFNULL(o.tname,d.d_section) as tname,o.p_oid,o.otype,o.o_drug,o.o_tprice,o.o_pstate
+                          from setmeal_orders o
+                                   JOIN patient p on o.p_id=p.p_id
+                                   left  JOIN doctor d on o.d_id=d.d_id
+                                   Left JOIN setmeal s on o.tid=s.tid
+                          where 1=1   and o.p_id=#{pId}
+                      ) a
+
+        ORDER BY o_end DESC
+
+    </select>
+
+    <select id="selectBypId_oStart_tid" parameterType="com.example.hospital.pojo.Orders" resultMap="orderPatientDoctorMap">
+
+       SELECT o.o_id,o.d_id,s.tname as tname,o.p_id,p.p_name as pName,o.o_start,o.o_end,o.o_total_price,o.o_price_state,o.o_state,o.tid,o.tname,o.p_oid
+       from orders o JOIN setmeal s JOIN patient p
+        on o.tid=s.tid
+        and o.p_id=p.p_id
+       where 1=1
+        and o.p_id=#{pId}
+        and o.o_start like #{oStart}"%"
+       and o.tid=#{tid}
+       ORDER BY o.o_end DESC
+
+    </select>
+
+
+
+</mapper>

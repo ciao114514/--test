@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模糊匹配测试</title>
+</head>
+<body>
+    <h1>模糊匹配测试</h1>
+    
+    <div>
+        <h2>测试科室模糊匹配</h2>
+        <label for="suggestedDept">AI推荐科室:</label>
+        <input type="text" id="suggestedDept" value="发热门诊" />
+        <br><br>
+        
+        <label for="departmentList">科室列表 (JSON格式):</label><br>
+        <textarea id="departmentList" rows="5" cols="50">
+["发热门诊", "内科", "外科", "儿科", "眼科", "耳鼻喉科", "口腔科"]
+        </textarea>
+        <br><br>
+        
+        <button onclick="testDepartmentMatching()">测试科室匹配</button>
+    </div>
+    
+    <div>
+        <h2>测试医生模糊匹配</h2>
+        <label for="suggestedDoctor">AI推荐医生:</label>
+        <input type="text" id="suggestedDoctor" value="111" />
+        <br><br>
+        
+        <label for="doctorList">医生列表 (JSON格式):</label><br>
+        <textarea id="doctorList" rows="5" cols="50">
+[{"dId": 1, "dName": "张三三", "dPost": "主任医师"}, {"dId": 2, "dName": "111医生", "dPost": "副主任医师"}, {"dId": 3, "dName": "李四", "dPost": "主治医师"}]
+        </textarea>
+        <br><br>
+        
+        <button onclick="testDoctorMatching()">测试医生匹配</button>
+    </div>
+    
+    <div id="results" style="margin-top: 20px;">
+        <h2>测试结果</h2>
+        <pre id="output"></pre>
+    </div>
+
+    <script>
+        function fuzzyMatch(suggested, list, isDoctor = false) {
+            let matchedItem = null;
+            
+            // 精确匹配
+            for (const item of list) {
+                const itemName = isDoctor ? item.dName : item;
+                console.log('比较:', itemName, '与推荐:', suggested);
+                
+                // 精确匹配
+                if (itemName === suggested) {
+                    matchedItem = item;
+                    document.getElementById('output').textContent += `精确匹配成功: ${itemName}\n`;
+                    return matchedItem;
+                }
+                
+                // 包含匹配
+                if (itemName.includes(suggested) || suggested.includes(itemName)) {
+                    matchedItem = item;
+                    document.getElementById('output').textContent += `包含匹配成功: ${itemName}\n`;
+                    return matchedItem;
+                }
+                
+                // 部分匹配（如果是科室，去掉"科"字后匹配）
+                if (!isDoctor && itemName.replace('科', '') === suggested.replace('科', '')) {
+                    matchedItem = item;
+                    document.getElementById('output').textContent += `部分匹配成功: ${itemName}\n`;
+                    return matchedItem;
+                }
+                
+                // 姓名匹配（只比较前两个字符，仅适用于医生）
+                if (isDoctor && itemName.length >= 2 && suggested.length >= 2 && 
+                    itemName.substring(0, 2) === suggested.substring(0, 2)) {
+                    matchedItem = item;
+                    document.getElementById('output').textContent += `姓名匹配成功: ${itemName}\n`;
+                    return matchedItem;
+                }
+            }
+            
+            // 如果仍未找到匹配项，则尝试模糊匹配
+            document.getElementById('output').textContent += '尝试模糊匹配\n';
+            for (const item of list) {
+                const itemName = isDoctor ? item.dName : item;
+                
+                // 将两个字符串都转换为小写以进行不区分大小写的比较
+                const lowerItemName = itemName.toLowerCase();
+                const lowerSuggested = suggested.toLowerCase();
+                
+                // 检查是否至少有一半的字符匹配
+                let matchCount = 0;
+                for (let i = 0; i < lowerSuggested.length; i++) {
+                    if (lowerItemName.includes(lowerSuggested.charAt(i))) {
+                        matchCount++;
+                    }
+                }
+                
+                // 如果匹配度超过50%，则认为是匹配的项
+                if (matchCount / lowerSuggested.length > 0.5) {
+                    matchedItem = item;
+                    document.getElementById('output').textContent += `模糊匹配成功: ${itemName} 匹配度: ${matchCount / lowerSuggested.length}\n`;
+                    return matchedItem;
+                }
+            }
+            
+            return matchedItem;
+        }
+        
+        function testDepartmentMatching() {
+            const suggestedDept = document.getElementById('suggestedDept').value;
+            const departmentList = JSON.parse(document.getElementById('departmentList').value);
+            
+            document.getElementById('output').textContent = "开始测试科室匹配...\n\n";
+            
+            const matchedDept = fuzzyMatch(suggestedDept, departmentList, false);
+            
+            if (matchedDept) {
+                document.getElementById('output').textContent += `\n最终匹配结果: ${matchedDept}\n`;
+            } else {
+                document.getElementById('output').textContent += "\n未找到匹配的科室\n";
+            }
+        }
+        
+        function testDoctorMatching() {
+            const suggestedDoctor = document.getElementById('suggestedDoctor').value;
+            const doctorList = JSON.parse(document.getElementById('doctorList').value);
+            
+            document.getElementById('output').textContent = "开始测试医生匹配...\n\n";
+            
+            const matchedDoctor = fuzzyMatch(suggestedDoctor, doctorList, true);
+            
+            if (matchedDoctor) {
+                document.getElementById('output').textContent += `\n最终匹配结果: ${matchedDoctor.dName} (ID: ${matchedDoctor.dId})\n`;
+            } else {
+                document.getElementById('output').textContent += "\n未找到匹配的医生\n";
+            }
+        }
+    </script>
+</body>
+</html>

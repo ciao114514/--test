@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>调试科室医生自动选择</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
+        select, input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; }
+        button { background: #409eff; color: white; border: none; padding: 12px 20px; border-radius: 4px; cursor: pointer; font-size: 16px; margin-right: 10px; }
+        button:hover { background: #337ecc; }
+        .result { margin-top: 20px; padding: 15px; background: #e8f4ff; border-radius: 4px; border-left: 4px solid #409eff; }
+        .debug { margin-top: 20px; padding: 15px; background: #f0f0f0; border-radius: 4px; font-family: monospace; white-space: pre-wrap; }
+        .chat-message { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .user-message { background: #409eff; color: white; }
+        .ai-message { background: #f0f0f0; color: #333; }
+        .registration-form { background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 20px; margin-top: 20px; }
+        h1, h2, h3 { color: #333; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>调试科室医生自动选择功能</h1>
+        <p>此页面用于调试科室和医生的自动选择功能</p>
+        
+        <div class="form-group">
+            <label for="aiMessages">AI对话历史 (每行一条消息):</label>
+            <textarea id="aiMessages" rows="6" placeholder="输入AI的对话历史，例如：
+您好，根据您的症状，推荐您去神经内科就诊
+推荐医生华佗"></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label for="departments">科室列表 (JSON格式):</label>
+            <textarea id="departments" rows="4" placeholder='["神经内科", "内分泌科", "消化内科", "心血管内科", "普通外科"]'></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label for="doctors">医生列表 (JSON格式):</label>
+            <textarea id="doctors" rows="6" placeholder='{
+  "神经内科": [
+    {"dId": 1000, "dName": "华佗", "dPost": "主任医师"},
+    {"dId": 1001, "dName": "张仲景", "dPost": "副主任医师"}
+  ],
+  "内分泌科": [
+    {"dId": 1111, "dName": "张仲景", "dPost": "主任医师"}
+  ]
+}'></textarea>
+        </div>
+        
+        <button onclick="testAutoSelect()">测试自动选择</button>
+        <button onclick="clearDebug()">清空调试信息</button>
+        
+        <div class="result" id="result"></div>
+        <div class="debug" id="debug"></div>
+    </div>
+
+    <script>
+        // 添加调试信息
+        function addDebug(message) {
+            const debugDiv = document.getElementById('debug');
+            const timestamp = new Date().toLocaleTimeString();
+            debugDiv.innerHTML += `[${timestamp}] ${message}\n`;
+            debugDiv.scrollTop = debugDiv.scrollHeight;
+        }
+        
+        // 清空调试信息
+        function clearDebug() {
+            document.getElementById('debug').innerHTML = '';
+        }
+        
+        // 模拟科室和医生数据
+        const mockDepartments = [
+            "神经内科", "内分泌科", "消化内科", "心血管内科", 
+            "普通外科", "泌尿外科", "耳鼻咽喉科", "眼科", 
+            "妇科", "功能科", "急诊科", "中医科"
+        ];
+        
+        const mockDoctors = {
+            "神经内科": [
+                { dId: 1000, dName: "华佗", dPost: "主任医师" },
+                { dId: 1001, dName: "张仲景", dPost: "副主任医师" }
+            ],
+            "内分泌科": [
+                { dId: 1111, dName: "张仲景", dPost: "主任医师" }
+            ],
+            "消化内科": [
+                { dId: 2222, dName: "孙思邈", dPost: "主任医师" }
+            ],
+            "心血管内科": [
+                { dId: 3333, dName: "李时珍", dPost: "主任医师" }
+            ],
+            "普通外科": [
+                { dId: 4444, dName: "皇甫谧", dPost: "主任医师" }
+            ],
+            "泌尿外科": [
+                { dId: 7777, dName: "葛洪", dPost: "主任医师" }
+            ],
+            "耳鼻咽喉科": [
+                { dId: 5555, dName: "扁鹊", dPost: "主任医师" }
+            ],
+            "眼科": [
+                { dId: 6666, dName: "钱乙", dPost: "主任医师" }
+            ],
+            "妇科": [
+                { dId: 8888, dName: "宋慈", dPost: "主任医师" }
+            ]
+        };
+        
+        // 页面加载时填充默认数据
+        window.onload = function() {
+            document.getElementById('departments').value = JSON.stringify(mockDepartments, null, 2);
+            document.getElementById('doctors').value = JSON.stringify(mockDoctors, null, 2);
+        };
+        
+        // 科室匹配函数
+        function matchDepartment(suggestedDepartment, departments) {
+            addDebug(`开始匹配科室: ${suggestedDepartment}`);
+            addDebug(`科室列表: ${JSON.stringify(departments)}`);
+            
+            let matchedDepartment = null;
+            
+            // 更智能的匹配方式
+            for (const dept of departments) {
+                addDebug(`比较科室: ${dept} 与推荐科室: ${suggestedDepartment}`);
+                // 精确匹配
+                if (dept === suggestedDepartment) {
+                    matchedDepartment = dept;
+                    addDebug(`精确匹配成功: ${dept}`);
+                    break;
+                }
+                // 包含匹配
+                if (dept.includes(suggestedDepartment) || suggestedDepartment.includes(dept)) {
+                    matchedDepartment = dept;
+                    addDebug(`包含匹配成功: ${dept}`);
+                    break;
+                }
+                // 部分匹配（去掉"科"字后匹配）
+                if (dept.replace('科', '') === suggestedDepartment.replace('科', '')) {
+                    matchedDepartment = dept;
+                    addDebug(`部分匹配成功: ${dept}`);
+                    break;
+                }
+            }
+            
+            addDebug(`科室匹配结果: ${matchedDepartment}`);
+            return matchedDepartment;
+        }
+        
+        // 医生匹配函数
+        function matchDoctor(suggestedDoctor, doctors) {
+            addDebug(`开始匹配医生: ${suggestedDoctor}`);
+            addDebug(`医生列表: ${JSON.stringify(doctors, null, 2)}`);
+            
+            let matchedDoctor = null;
+            
+            // 更智能的医生匹配方式
+            for (const doctor of doctors) {
+                addDebug(`比较医生: ${doctor.dName} 与推荐医生: ${suggestedDoctor}`);
+                // 精确匹配
+                if (doctor.dName === suggestedDoctor) {
+                    matchedDoctor = doctor;
+                    addDebug(`精确匹配成功: ${doctor.dName}`);
+                    break;
+                }
+                // 包含匹配
+                if (doctor.dName.includes(suggestedDoctor) || suggestedDoctor.includes(doctor.dName)) {
+                    matchedDoctor = doctor;
+                    addDebug(`包含匹配成功: ${doctor.dName}`);
+                    break;
+                }
+                // 姓名匹配（只比较前两个字符）
+                if (doctor.dName.substring(0, 2) === suggestedDoctor.substring(0, 2)) {
+                    matchedDoctor = doctor;
+                    addDebug(`姓名匹配成功: ${doctor.dName}`);
+                    break;
+                }
+            }
+            
+            addDebug(`医生匹配结果: ${matchedDoctor ? matchedDoctor.dName : '未找到'}`);
+            return matchedDoctor;
+        }
+        
+        // 自动选择科室和医生的主函数
+        function applyAiDepartmentSuggestion(aiMessages, departments, doctors) {
+            addDebug('开始应用AI科室和医生建议');
+            
+            // 从最近的对话中查找AI推荐的科室
+            for (let i = aiMessages.length - 1; i >= 0; i--) {
+                const message = aiMessages[i];
+                addDebug(`检查AI消息: ${message}`);
+                
+                // 查找科室推荐的模式
+                const departmentMatch = message.match(/(?:推荐您去|建议挂|建议您挂|可以挂|应该挂|需要挂|适合挂|推荐挂)[\s\S]*?([^\s，,。！!]{2,10}(?:科|门诊|内科|外科|妇科|儿科|眼科|耳鼻喉科|口腔科|皮肤科|精神科|肿瘤科|中医科))/);
+                if (departmentMatch && departmentMatch[1]) {
+                    const suggestedDepartment = departmentMatch[1];
+                    addDebug(`AI推荐科室: ${suggestedDepartment}`);
+                    
+                    // 匹配科室
+                    const matchedDepartment = matchDepartment(suggestedDepartment, departments);
+                    
+                    if (matchedDepartment) {
+                        addDebug(`成功匹配科室: ${matchedDepartment}`);
+                        
+                        // 查找医生推荐
+                        const doctorMatch = message.match(/(?:推荐医生|建议找|可以找|推荐您找)[\s\S]*?([^\s，,。！!]{2,5}(?:医生|医师|教授|主任|副主任))/);
+                        if (doctorMatch && doctorMatch[1]) {
+                            const suggestedDoctor = doctorMatch[1];
+                            addDebug(`AI推荐医生: ${suggestedDoctor}`);
+                            
+                            // 匹配医生
+                            if (doctors[matchedDepartment]) {
+                                const matchedDoctor = matchDoctor(suggestedDoctor, doctors[matchedDepartment]);
+                                
+                                if (matchedDoctor) {
+                                    addDebug(`成功匹配医生: ${matchedDoctor.dName} (ID: ${matchedDoctor.dId})`);
+                                    return {
+                                        department: matchedDepartment,
+                                        doctor: matchedDoctor
+                                    };
+                                }
+                            }
+                        }
+                        
+                        // 只匹配到科室
+                        return {
+                            department: matchedDepartment,
+                            doctor: null
+                        };
+                    }
+                }
+            }
+            
+            addDebug('未找到匹配的科室或医生');
+            return {
+                department: null,
+                doctor: null
+            };
+        }
+        
+        // 测试函数
+        function testAutoSelect() {
+            // 清空之前的调试信息
+            clearDebug();
+            
+            try {
+                // 获取输入数据
+                const aiMessagesText = document.getElementById('aiMessages').value;
+                const departmentsText = document.getElementById('departments').value;
+                const doctorsText = document.getElementById('doctors').value;
+                
+                if (!aiMessagesText) {
+                    alert('请输入AI对话历史');
+                    return;
+                }
+                
+                // 解析输入数据
+                const aiMessages = aiMessagesText.split('\n').filter(line => line.trim());
+                const departments = departmentsText ? JSON.parse(departmentsText) : mockDepartments;
+                const doctors = doctorsText ? JSON.parse(doctorsText) : mockDoctors;
+                
+                addDebug('输入数据解析完成');
+                addDebug(`AI消息数量: ${aiMessages.length}`);
+                addDebug(`科室数量: ${departments.length}`);
+                addDebug(`有医生信息的科室数量: ${Object.keys(doctors).length}`);
+                
+                // 应用AI建议
+                const result = applyAiDepartmentSuggestion(aiMessages, departments, doctors);
+                
+                // 显示结果
+                const resultDiv = document.getElementById('result');
+                if (result.department) {
+                    let resultHtml = `<h3>自动选择结果:</h3>`;
+                    resultHtml += `<p><strong>科室:</strong> ${result.department}</p>`;
+                    
+                    if (result.doctor) {
+                        resultHtml += `<p><strong>医生:</strong> ${result.doctor.dName} (${result.doctor.dPost})</p>`;
+                        resultHtml += `<p><strong>医生ID:</strong> ${result.doctor.dId}</p>`;
+                    } else {
+                        resultHtml += `<p><strong>医生:</strong> 未找到匹配的医生</p>`;
+                    }
+                    
+                    resultDiv.innerHTML = resultHtml;
+                } else {
+                    resultDiv.innerHTML = `<h3>自动选择结果:</h3><p>未找到匹配的科室或医生</p>`;
+                }
+                
+            } catch (error) {
+                addDebug(`错误: ${error.message}`);
+                document.getElementById('result').innerHTML = `<h3>错误:</h3><p>${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

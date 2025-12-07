@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>科室医生自动选择测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        select, input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 4px; }
+        .debug { margin-top: 20px; padding: 15px; background: #e9ecef; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>科室医生自动选择测试</h1>
+        
+        <div class="form-group">
+            <label for="departments">科室列表:</label>
+            <select id="departments" multiple size="5"></select>
+        </div>
+        
+        <div class="form-group">
+            <label for="doctors">医生列表:</label>
+            <select id="doctors" multiple size="5"></select>
+        </div>
+        
+        <div class="form-group">
+            <label for="aiMessage">AI消息内容:</label>
+            <textarea id="aiMessage" rows="4" placeholder="请输入AI的推荐消息，例如：推荐您去神经内科，推荐医生华佗"></textarea>
+        </div>
+        
+        <button onclick="testAutoSelect()">测试自动选择</button>
+        
+        <div class="result" id="result"></div>
+        <div class="debug" id="debug"></div>
+    </div>
+
+    <script>
+        // 模拟科室和医生数据
+        const departments = [
+            "神经内科", "内分泌科", "消化内科", "心血管内科", 
+            "普通外科", "泌尿外科", "耳鼻咽喉科", "眼科", 
+            "妇科", "功能科", "急诊科", "中医科"
+        ];
+        
+        const doctors = {
+            "神经内科": [
+                { dId: 1000, dName: "华佗", dPost: "主任医师" },
+                { dId: 1001, dName: "张仲景", dPost: "副主任医师" }
+            ],
+            "内分泌科": [
+                { dId: 1111, dName: "张仲景", dPost: "主任医师" }
+            ],
+            "消化内科": [
+                { dId: 2222, dName: "孙思邈", dPost: "主任医师" }
+            ],
+            "心血管内科": [
+                { dId: 3333, dName: "李时珍", dPost: "主任医师" }
+            ],
+            "普通外科": [
+                { dId: 4444, dName: "皇甫谧", dPost: "主任医师" }
+            ],
+            "泌尿外科": [
+                { dId: 7777, dName: "葛洪", dPost: "主任医师" }
+            ],
+            "耳鼻咽喉科": [
+                { dId: 5555, dName: "扁鹊", dPost: "主任医师" }
+            ],
+            "眼科": [
+                { dId: 6666, dName: "钱乙", dPost: "主任医师" }
+            ],
+            "妇科": [
+                { dId: 8888, dName: "宋慈", dPost: "主任医师" }
+            ]
+        };
+        
+        // 初始化科室列表
+        const deptSelect = document.getElementById('departments');
+        departments.forEach(dept => {
+            const option = document.createElement('option');
+            option.value = dept;
+            option.textContent = dept;
+            deptSelect.appendChild(option);
+        });
+        
+        // 科室选择变化时更新医生列表
+        deptSelect.addEventListener('change', function() {
+            const selectedDept = this.value;
+            const doctorSelect = document.getElementById('doctors');
+            doctorSelect.innerHTML = '';
+            
+            if (doctors[selectedDept]) {
+                doctors[selectedDept].forEach(doctor => {
+                    const option = document.createElement('option');
+                    option.value = doctor.dId;
+                    option.textContent = `${doctor.dName} (${doctor.dPost})`;
+                    doctorSelect.appendChild(option);
+                });
+            }
+        });
+        
+        // 自动选择科室和医生的函数
+        function applyAiDepartmentSuggestion(aiMessage) {
+            const debugDiv = document.getElementById('debug');
+            debugDiv.innerHTML = `<h3>调试信息:</h3>`;
+            
+            debugDiv.innerHTML += `<p>AI消息: ${aiMessage}</p>`;
+            debugDiv.innerHTML += `<p>科室列表: ${JSON.stringify(departments)}</p>`;
+            
+            // 查找科室推荐
+            const departmentMatch = aiMessage.match(/(?:推荐您去|建议挂|建议您挂|可以挂|应该挂|需要挂|适合挂|推荐挂)[\s\S]*?([^\s，,。！!]{2,10}(?:科|门诊|内科|外科|妇科|儿科|眼科|耳鼻喉科|口腔科|皮肤科|精神科|肿瘤科|中医科))/);
+            
+            if (departmentMatch && departmentMatch[1]) {
+                const suggestedDepartment = departmentMatch[1];
+                debugDiv.innerHTML += `<p>AI推荐科室: ${suggestedDepartment}</p>`;
+                
+                // 匹配科室
+                let matchedDepartment = null;
+                for (const dept of departments) {
+                    if (dept === suggestedDepartment) {
+                        matchedDepartment = dept;
+                        break;
+                    }
+                    if (dept.includes(suggestedDepartment) || suggestedDepartment.includes(dept)) {
+                        matchedDepartment = dept;
+                        break;
+                    }
+                    if (dept.replace('科', '') === suggestedDepartment.replace('科', '')) {
+                        matchedDepartment = dept;
+                        break;
+                    }
+                }
+                
+                debugDiv.innerHTML += `<p>科室匹配结果: ${matchedDepartment}</p>`;
+                
+                if (matchedDepartment) {
+                    // 选择科室
+                    deptSelect.value = matchedDepartment;
+                    // 触发change事件更新医生列表
+                    deptSelect.dispatchEvent(new Event('change'));
+                    
+                    // 查找医生推荐
+                    const doctorMatch = aiMessage.match(/(?:推荐医生|建议找|可以找|推荐您找)[\s\S]*?([^\s，,。！!]{2,5}(?:医生|医师|教授|主任|副主任))/);
+                    if (doctorMatch && doctorMatch[1]) {
+                        const suggestedDoctor = doctorMatch[1];
+                        debugDiv.innerHTML += `<p>AI推荐医生: ${suggestedDoctor}</p>`;
+                        
+                        // 等待医生列表更新后选择医生
+                        setTimeout(() => {
+                            const doctorSelect = document.getElementById('doctors');
+                            let matchedDoctor = null;
+                            
+                            if (doctors[matchedDepartment]) {
+                                for (const doctor of doctors[matchedDepartment]) {
+                                    if (doctor.dName === suggestedDoctor) {
+                                        matchedDoctor = doctor;
+                                        break;
+                                    }
+                                    if (doctor.dName.includes(suggestedDoctor) || suggestedDoctor.includes(doctor.dName)) {
+                                        matchedDoctor = doctor;
+                                        break;
+                                    }
+                                    if (doctor.dName.substring(0, 2) === suggestedDoctor.substring(0, 2)) {
+                                        matchedDoctor = doctor;
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            debugDiv.innerHTML += `<p>医生匹配结果: ${matchedDoctor ? matchedDoctor.dName : '未找到匹配医生'}</p>`;
+                            
+                            if (matchedDoctor) {
+                                doctorSelect.value = matchedDoctor.dId;
+                            }
+                        }, 100);
+                    }
+                }
+            }
+        }
+        
+        // 测试函数
+        function testAutoSelect() {
+            const aiMessage = document.getElementById('aiMessage').value;
+            if (!aiMessage) {
+                alert('请输入AI消息内容');
+                return;
+            }
+            
+            document.getElementById('result').innerHTML = '<h3>测试结果:</h3><p>正在处理...</p>';
+            
+            // 重置选择
+            deptSelect.selectedIndex = -1;
+            document.getElementById('doctors').innerHTML = '';
+            
+            // 应用AI建议
+            applyAiDepartmentSuggestion(aiMessage);
+            
+            // 显示结果
+            setTimeout(() => {
+                const selectedDept = deptSelect.value;
+                const doctorSelect = document.getElementById('doctors');
+                const selectedDoctor = doctorSelect.options[doctorSelect.selectedIndex]?.text || '未选择';
+                
+                document.getElementById('result').innerHTML = `
+                    <h3>测试结果:</h3>
+                    <p><strong>选择的科室:</strong> ${selectedDept || '未选择'}</p>
+                    <p><strong>选择的医生:</strong> ${selectedDoctor}</p>
+                `;
+            }, 200);
+        }
+    </script>
+</body>
+</html>

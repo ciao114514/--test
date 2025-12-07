@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.hospital.mapper.CheckMapper">
+
+
+    <select id="selectBykname" parameterType="java.lang.String" resultType="com.example.hospital.pojo.Checks">
+        select  kname , ch_name,ch_Price from checks  where  kname=#{kname}
+    </select>
+
+
+    <select id="selectChecksGetKname" resultType="com.example.hospital.pojo.Checks">
+        select DISTINCT  kname from  checks
+    </select>
+
+    <select id="selectmyChecks"  parameterType="com.example.hospital.pojo.Checks" resultType="com.example.hospital.pojo.Checks">
+        select a.ch_id, a.ch_Name,a.ch_Price,a.kname,b.tid,CASE
+                                                               WHEN IFNULL(b.tid,0) = 0 THEN 'false'
+                                                               ELSE
+                                                                   'true'
+            END isActive  from  checks a
+           Left join
+            (select tid, ch_id from setmeal_checks where tid=#{tid})
+             b on a.ch_id = b.ch_id
+        where a.kname=#{kname}
+    </select>
+    <select id="selectChecksByTid" parameterType="java.lang.Integer" resultType="com.example.hospital.pojo.Checks">
+        select
+            c.ch_id,
+            c.kname,
+            c.ch_name,
+            c.ch_price
+        from setmeal_checks b
+                 left join checks c on c.ch_id=b.ch_id
+        where b.tid=#{tid}
+        ORDER BY c.ch_id
+
+    </select>
+
+
+</mapper>

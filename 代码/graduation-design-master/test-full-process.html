@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>完整流程测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
+        select, input, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        button { background: #409eff; color: white; border: none; padding: 12px 20px; border-radius: 4px; cursor: pointer; font-size: 16px; margin-right: 10px; margin-bottom: 10px; }
+        button:hover { background: #337ecc; }
+        .result { margin-top: 20px; padding: 15px; background: #e8f4ff; border-radius: 4px; border-left: 4px solid #409eff; }
+        .debug { margin-top: 20px; padding: 15px; background: #f0f0f0; border-radius: 4px; font-family: monospace; white-space: pre-wrap; max-height: 300px; overflow-y: auto; }
+        .chat-message { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .user-message { background: #409eff; color: white; }
+        .ai-message { background: #f0f0f0; color: #333; }
+        .registration-form { background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 20px; margin-top: 20px; }
+        h1, h2, h3 { color: #333; }
+        .step { margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid #eee; }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>完整流程测试</h1>
+        <p>此页面用于测试从用户描述症状到自动选择科室医生的完整流程</p>
+        
+        <div class="step">
+            <h2>步骤1: 模拟用户描述症状</h2>
+            <div class="form-group">
+                <label for="symptom">用户症状描述:</label>
+                <input type="text" id="symptom" value="我最近总是头痛，有时候还会恶心">
+            </div>
+            <button onclick="simulateUserSymptom()">模拟用户发送症状</button>
+        </div>
+        
+        <div class="step">
+            <h2>步骤2: 模拟AI回复推荐</h2>
+            <div class="form-group">
+                <label for="aiResponse">AI回复内容:</label>
+                <textarea id="aiResponse" rows="4">根据您的症状描述，推荐您去神经内科就诊。这个科室专门处理头痛、恶心等相关症状。推荐医生华佗，他是我们医院神经内科的主任医师，有丰富的临床经验。</textarea>
+            </div>
+            <button onclick="simulateAiResponse()">模拟AI回复</button>
+        </div>
+        
+        <div class="step">
+            <h2>步骤3: 用户请求挂号</h2>
+            <div class="form-group">
+                <label for="registrationRequest">用户挂号请求:</label>
+                <input type="text" id="registrationRequest" value="我要挂号" readonly>
+            </div>
+            <button onclick="simulateRegistrationRequest()">模拟用户请求挂号</button>
+        </div>
+        
+        <div class="step">
+            <h2>步骤4: 显示挂号表单并自动选择</h2>
+            <button onclick="showRegistrationForm()">显示挂号表单</button>
+            <button onclick="simulateAutoSelect()">模拟自动选择科室医生</button>
+            
+            <div class="registration-form" id="registrationForm" style="display: none;">
+                <h3>在线挂号</h3>
+                <div class="form-group">
+                    <label for="selectedDepartment">选择科室:</label>
+                    <select id="selectedDepartment">
+                        <option value="">请选择科室</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="selectedDoctor">选择医生:</label>
+                    <select id="selectedDoctor">
+                        <option value="">请选择医生</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="selectedDate">选择日期:</label>
+                    <input type="date" id="selectedDate">
+                </div>
+                
+                <div class="form-group">
+                    <label for="selectedTime">选择时间:</label>
+                    <select id="selectedTime">
+                        <option value="08:30-11:30">上午 08:30-11:30</option>
+                        <option value="14:30-17:30">下午 14:30-17:30</option>
+                    </select>
+                </div>
+                
+                <button onclick="submitRegistration()">确认挂号</button>
+                <button onclick="cancelRegistration()">取消</button>
+            </div>
+        </div>
+        
+        <div class="result" id="result"></div>
+        <div class="debug" id="debug"></div>
+    </div>
+
+    <script>
+        // 模拟对话历史
+        let chatMessages = [];
+        
+        // 模拟科室和医生数据
+        const departments = [
+            "神经内科", "内分泌科", "消化内科", "心血管内科", 
+            "普通外科", "泌尿外科", "耳鼻咽喉科", "眼科", 
+            "妇科", "功能科", "急诊科", "中医科"
+        ];
+        
+        const doctors = {
+            "神经内科": [
+                { dId: 1000, dName: "华佗", dPost: "主任医师" },
+                { dId: 1001, dName: "张仲景", dPost: "副主任医师" }
+            ],
+            "内分泌科": [
+                { dId: 1111, dName: "张仲景", dPost: "主任医师" }
+            ],
+            "消化内科": [
+                { dId: 2222, dName: "孙思邈", dPost: "主任医师" }
+            ],
+            "心血管内科": [
+                { dId: 3333, dName: "李时珍", dPost: "主任医师" }
+            ],
+            "普通外科": [
+                { dId: 4444, dName: "皇甫谧", dPost: "主任医师" }
+            ]
+        };
+        
+        // 添加调试信息
+        function addDebug(message) {
+            const debugDiv = document.getElementById('debug');
+            const timestamp = new Date().toLocaleTimeString();
+            debugDiv.innerHTML += `[${timestamp}] ${message}\n`;
+            debugDiv.scrollTop = debugDiv.scrollHeight;
+        }
+        
+        // 清空调试信息
+        function clearDebug() {
+            document.getElementById('debug').innerHTML = '';
+        }
+        
+        // 步骤1: 模拟用户症状
+        function simulateUserSymptom() {
+            const symptom = document.getElementById('symptom').value;
+            chatMessages.push({
+                role: 'user',
+                content: symptom
+            });
+            
+            addDebug(`用户发送症状: ${symptom}`);
+            document.getElementById('result').innerHTML = `<p class="success">用户已发送症状描述</p>`;
+        }
+        
+        // 步骤2: 模拟AI回复
+        function simulateAiResponse() {
+            const aiResponse = document.getElementById('aiResponse').value;
+            chatMessages.push({
+                role: 'ai',
+                content: aiResponse
+            });
+            
+            addDebug(`AI回复: ${aiResponse}`);
+            document.getElementById('result').innerHTML = `<p class="success">AI已回复推荐科室和医生</p>`;
+        }
+        
+        // 步骤3: 模拟用户请求挂号
+        function simulateRegistrationRequest() {
+            const registrationRequest = document.getElementById('registrationRequest').value;
+            chatMessages.push({
+                role: 'user',
+                content: registrationRequest
+            });
+            
+            addDebug(`用户请求挂号: ${registrationRequest}`);
+            document.getElementById('result').innerHTML = `<p class="success">用户已请求挂号</p>`;
+        }
+        
+        // 步骤4: 显示挂号表单
+        function showRegistrationForm() {
+            // 填充科室下拉列表
+            const deptSelect = document.getElementById('selectedDepartment');
+            deptSelect.innerHTML = '<option value="">请选择科室</option>';
+            departments.forEach(dept => {
+                const option = document.createElement('option');
+                option.value = dept;
+                option.textContent = dept;
+                deptSelect.appendChild(option);
+            });
+            
+            // 设置默认日期为明天
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            document.getElementById('selectedDate').value = tomorrow.toISOString().split('T')[0];
+            
+            // 设置默认时间为上午
+            document.getElementById('selectedTime').value = '08:30-11:30';
+            
+            // 显示表单
+            document.getElementById('registrationForm').style.display = 'block';
+            
+            addDebug('挂号表单已显示');
+            document.getElementById('result').innerHTML = `<p class="success">挂号表单已显示</p>`;
+        }
+        
+        // 科室选择变化时更新医生列表
+        document.getElementById('selectedDepartment').addEventListener('change', function() {
+            const selectedDept = this.value;
+            const doctorSelect = document.getElementById('selectedDoctor');
+            doctorSelect.innerHTML = '<option value="">请选择医生</option>';
+            
+            if (selectedDept && doctors[selectedDept]) {
+                doctors[selectedDept].forEach(doctor => {
+                    const option = document.createElement('option');
+                    option.value = doctor.dId;
+                    option.textContent = `${doctor.dName} (${doctor.dPost})`;
+                    doctorSelect.appendChild(option);
+                });
+            }
+            
+            addDebug(`科室变更: ${selectedDept}, 更新医生列表`);
+        });
+        
+        // 模拟自动选择科室和医生
+        function simulateAutoSelect() {
+            addDebug('开始自动选择科室和医生');
+            
+            // 从最近的对话中查找AI推荐的科室
+            for (let i = chatMessages.length - 1; i >= 0; i--) {
+                const message = chatMessages[i];
+                if (message.role === 'ai' && message.content) {
+                    addDebug(`检查AI消息: ${message.content}`);
+                    
+                    // 查找科室推荐
+                    const departmentMatch = message.content.match(/(?:推荐您去|建议挂|建议您挂|可以挂|应该挂|需要挂|适合挂|推荐挂)[\s\S]*?([^\s，,。！!]{2,10}(?:科|门诊|内科|外科|妇科|儿科|眼科|耳鼻喉科|口腔科|皮肤科|精神科|肿瘤科|中医科))/);
+                    if (departmentMatch && departmentMatch[1]) {
+                        const suggestedDepartment = departmentMatch[1];
+                        addDebug(`AI推荐科室: ${suggestedDepartment}`);
+                        
+                        // 匹配科室
+                        let matchedDepartment = null;
+                        for (const dept of departments) {
+                            if (dept === suggestedDepartment) {
+                                matchedDepartment = dept;
+                                break;
+                            }
+                            if (dept.includes(suggestedDepartment) || suggestedDepartment.includes(dept)) {
+                                matchedDepartment = dept;
+                                break;
+                            }
+                            if (dept.replace('科', '') === suggestedDepartment.replace('科', '')) {
+                                matchedDepartment = dept;
+                                break;
+                            }
+                        }
+                        
+                        addDebug(`科室匹配结果: ${matchedDepartment}`);
+                        
+                        if (matchedDepartment) {
+                            // 选择科室
+                            document.getElementById('selectedDepartment').value = matchedDepartment;
+                            // 触发change事件更新医生列表
+                            document.getElementById('selectedDepartment').dispatchEvent(new Event('change'));
+                            
+                            addDebug(`已选择科室: ${matchedDepartment}`);
+                            
+                            // 查找医生推荐
+                            const doctorMatch = message.content.match(/(?:推荐医生|建议找|可以找|推荐您找)[\s\S]*?([^\s，,。！!]{2,5}(?:医生|医师|教授|主任|副主任))/);
+                            if (doctorMatch && doctorMatch[1]) {
+                                const suggestedDoctor = doctorMatch[1];
+                                addDebug(`AI推荐医生: ${suggestedDoctor}`);
+                                
+                                // 等待医生列表更新后选择医生
+                                setTimeout(() => {
+                                    const doctorSelect = document.getElementById('selectedDoctor');
+                                    let matchedDoctor = null;
+                                    
+                                    if (doctors[matchedDepartment]) {
+                                        for (const doctor of doctors[matchedDepartment]) {
+                                            if (doctor.dName === suggestedDoctor) {
+                                                matchedDoctor = doctor;
+                                                break;
+                                            }
+                                            if (doctor.dName.includes(suggestedDoctor) || suggestedDoctor.includes(doctor.dName)) {
+                                                matchedDoctor = doctor;
+                                                break;
+                                            }
+                                            if (doctor.dName.substring(0, 2) === suggestedDoctor.substring(0, 2)) {
+                                                matchedDoctor = doctor;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    
+                                    addDebug(`医生匹配结果: ${matchedDoctor ? matchedDoctor.dName : '未找到'}`);
+                                    
+                                    if (matchedDoctor) {
+                                        doctorSelect.value = matchedDoctor.dId;
+                                        addDebug(`已选择医生: ${matchedDoctor.dName}`);
+                                        document.getElementById('result').innerHTML = `
+                                            <p class="success">自动选择完成!</p>
+                                            <p><strong>科室:</strong> ${matchedDepartment}</p>
+                                            <p><strong>医生:</strong> ${matchedDoctor.dName} (${matchedDoctor.dPost})</p>
+                                        `;
+                                    } else {
+                                        document.getElementById('result').innerHTML = `
+                                            <p class="success">自动选择科室完成</p>
+                                            <p><strong>科室:</strong> ${matchedDepartment}</p>
+                                            <p class="error">未找到匹配的医生</p>
+                                        `;
+                                    }
+                                }, 100);
+                            } else {
+                                document.getElementById('result').innerHTML = `
+                                    <p class="success">自动选择科室完成</p>
+                                    <p><strong>科室:</strong> ${matchedDepartment}</p>
+                                `;
+                            }
+                            
+                            return;
+                        }
+                    }
+                }
+            }
+            
+            document.getElementById('result').innerHTML = `<p class="error">未找到匹配的科室或医生</p>`;
+        }
+        
+        // 提交挂号
+        function submitRegistration() {
+            const department = document.getElementById('selectedDepartment').value;
+            const doctorId = document.getElementById('selectedDoctor').value;
+            const date = document.getElementById('selectedDate').value;
+            const timeSlot = document.getElementById('selectedTime').value;
+            
+            if (!department || !doctorId || !date || !timeSlot) {
+                alert('请填写完整的挂号信息');
+                return;
+            }
+            
+            addDebug(`提交挂号: 科室=${department}, 医生ID=${doctorId}, 日期=${date}, 时间=${timeSlot}`);
+            document.getElementById('result').innerHTML = `<p class="success">挂号成功！</p>`;
+        }
+        
+        // 取消挂号
+        function cancelRegistration() {
+            document.getElementById('registrationForm').style.display = 'none';
+            document.getElementById('result').innerHTML = `<p>已取消挂号</p>`;
+            addDebug('用户取消挂号');
+        }
+    </script>
+</body>
+</html>

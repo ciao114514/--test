@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>科室和医生匹配调试工具</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-case {
+            border: 1px solid #ccc;
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .result {
+            background-color: #f9f9f9;
+            border-left: 4px solid #4CAF50;
+            padding: 10px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+        }
+        .error {
+            border-left-color: #f44336;
+            background-color: #ffebee;
+        }
+    </style>
+</head>
+<body>
+    <h1>科室和医生匹配调试工具</h1>
+    
+    <div class="test-case">
+        <h2>测试案例 1: 标准格式</h2>
+        <textarea id="aiResponse1" rows="10">
+很抱歉听到您正在发烧。根据您的情况，我为您提供以下专业的分析和建议：
+
+##  可能相关的科室推荐
+
+根据您的症状"发烧"，以下科室可能适合您：
+
+**1. 发热门诊** ️
+- **医生**：111 (主任医师)
+- **专长**：专门处理发热相关病症
+- **这是最直接对口的科室**
+
+**2. 普通外科**
+- **医生**：皇甫谧 (主任医师)
+- **如果伴有外科感染症状可考虑**
+        </textarea>
+        <br>
+        <button onclick="testMatching(1)">测试匹配</button>
+    </div>
+    
+    <div class="test-case">
+        <h2>测试案例 2: 简化格式</h2>
+        <textarea id="aiResponse2" rows="10">
+推荐科室：发热门诊
+推荐医生：111
+        </textarea>
+        <br>
+        <button onclick="testMatching(2)">测试匹配</button>
+    </div>
+    
+    <div class="test-case">
+        <h2>测试案例 3: 无格式文本</h2>
+        <textarea id="aiResponse3" rows="10">
+根据您的症状，建议您去发热门诊就诊，那里的医生111是这方面的专家。
+        </textarea>
+        <br>
+        <button onclick="testMatching(3)">测试匹配</button>
+    </div>
+    
+    <div class="test-case">
+        <h2>科室列表</h2>
+        <textarea id="departments" rows="5">["发热门诊", "普通外科", "内科", "儿科", "眼科", "耳鼻喉科"]</textarea>
+    </div>
+    
+    <div class="test-case">
+        <h2>医生列表</h2>
+        <textarea id="doctors" rows="5">[{"dId": 1, "dName": "111", "dPost": "主任医师"}, {"dId": 2, "dName": "皇甫谧", "dPost": "主任医师"}, {"dId": 3, "dName": "华佗", "dPost": "副主任医师"}]</textarea>
+    </div>
+    
+    <div id="results"></div>
+
+    <script>
+        function escapeRegExp(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+        
+        function fuzzyMatch(suggested, list, isDoctor = false) {
+            let matchedItem = null;
+            const lowerSuggested = suggested.toLowerCase();
+            
+            // 精确匹配
+            for (const item of list) {
+                const itemName = isDoctor ? item.dName : item;
+                const lowerItemName = itemName.toLowerCase();
+                
+                if (lowerItemName === lowerSuggested) {
+                    matchedItem = item;
+                    return { item: matchedItem, method: '精确匹配' };
+                }
+            }
+            
+            // 包含匹配
+            for (const item of list) {
+                const itemName = isDoctor ? item.dName : item;
+                const lowerItemName = itemName.toLowerCase();
+                
+                if (lowerItemName.includes(lowerSuggested) || lowerSuggested.includes(lowerItemName)) {
+                    matchedItem = item;
+                    return { item: matchedItem, method: '包含匹配' };
+                }
+            }
+            
+            // 部分匹配（仅适用于科室，去掉"科"字后匹配）
+            if (!isDoctor) {
+                for (const item of list) {
+                    const itemName = item;
+                    if (itemName.replace('科', '') === suggested.replace('科', '')) {
+                        matchedItem = item;
+                        return { item: matchedItem, method: '部分匹配' };
+                    }
+                }
+            }
+            
+            // 姓名匹配（仅适用于医生，只比较前两个字符）
+            if (isDoctor && suggested.length >= 2) {
+                for (const item of list) {
+                    const itemName = item.dName;
+                    if (itemName.length >= 2 && itemName.substring(0, 2) === suggested.substring(0, 2)) {
+                        matchedItem = item;
+                        return { item: matchedItem, method: '姓名匹配' };
+                    }
+                }
+            }
+            
+            // 模糊匹配
+            for (const item of list) {
+                const itemName = isDoctor ? item.dName : item;
+                const lowerItemName = itemName.toLowerCase();
+                
+                // 计算字符匹配度
+                let matchCount = 0;
+                for (let i = 0; i < lowerSuggested.length; i++) {
+                    if (lowerItemName.includes(lowerSuggested.charAt(i))) {
+                        matchCount++;
+                    }
+                }
+                
+                // 如果匹配度超过50%，则认为是匹配的项
+                if (matchCount / lowerSuggested.length > 0.5) {
+                    // 优先返回匹配度最高的项
+                    if (!matchedItem || matchCount > matchedItem.matchCount) {
+                        matchedItem = { ...item, matchCount };
+                    }
+                }
+            }
+            
+            if (matchedItem) {
+                delete matchedItem.matchCount; // 删除临时属性
+                return { item: matchedItem, method: '模糊匹配' };
+            }
+            
+            return { item: null, method: '无匹配' };
+        }
+        
+        function testMatching(caseNum) {
+            const aiResponse = document.getElementById(`aiResponse${caseNum}`).value;
+            const departments = JSON.parse(document.getElementById('departments').value);
+            const doctors = JSON.parse(document.getElementById('doctors').value);
+            
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = `<h3>测试案例 ${caseNum} 结果:</h3>`;
+            
+            // 测试科室匹配
+            resultDiv.innerHTML += `<h4>科室匹配测试:</h4>`;
+            resultDiv.innerHTML += `<p>AI回复内容预览: ${aiResponse.substring(0, 100)}...</p>`;
+            
+            // 尝试多种科室匹配正则表达式
+            const departmentPatterns = [
+                // 原始模式
+                /^(?:\*\*[\d、.]\s*)?(?:\*\*)?([^*。\n\r\t]{2,15}(?:科|门诊|内科|外科|妇科|儿科|眼科|耳鼻喉科|口腔科|皮肤科|精神科|肿瘤科|中医科|风湿科|传染科))(?:\*\*)?/gm,
+                // 匹配 "**1. 发热门诊**" 格式
+                /\*{2}\d*[.、]?\s*([^*。\n\r\t]{2,15}(?:科|门诊|内科|外科|妇科|儿科|眼科|耳鼻喉科|口腔科|皮肤科|精神科|肿瘤科|中医科|风湿科|传染科))\*{2}/g,
+                // 匹配 "**发热门诊**" 格式
+                /\*{2}([^*。\n\r\t]{2,15}(?:科|门诊|内科|外科|妇科|儿科|眼科|耳鼻喉科|口腔科|皮肤科|精神科|肿瘤科|中医科|风湿科|传染科))\*{2}/g,
+                // 匹配 "发热门诊" 格式（简单文本）
+                /(?:推荐)?\s*(?:科室)?[:：]?\s*([^*。\n\r\t，,]{2,15}(?:科|门诊|内科|外科|妇科|儿科|眼科|耳鼻喉科|口腔科|皮肤科|精神科|肿瘤科|中医科|风湿科|传染科))/g,
+                // 匹配 "建议您去发热门诊就诊" 格式
+                /建议您去\s*([^*。\n\r\t，,]{2,15}(?:科|门诊|内科|外科|妇科|儿科|眼科|耳鼻喉科|口腔科|皮肤科|精神科|肿瘤科|中医科|风湿科|传染科))\s*就/g,
+            ];
+            
+            let suggestedDepartment = null;
+            let usedPattern = null;
+            
+            for (let i = 0; i < departmentPatterns.length; i++) {
+                const pattern = departmentPatterns[i];
+                const matches = aiResponse.matchAll(pattern);
+                for (const match of matches) {
+                    if (match[1]) {
+                        suggestedDepartment = match[1];
+                        usedPattern = `Pattern ${i+1}: ${pattern.toString()}`;
+                        break;
+                    }
+                }
+                if (suggestedDepartment) break;
+            }
+            
+            if (suggestedDepartment) {
+                resultDiv.innerHTML += `<p>提取到科室: <strong>${suggestedDepartment}</strong></p>`;
+                resultDiv.innerHTML += `<p>使用的正则表达式: ${usedPattern}</p>`;
+                
+                // 尝试匹配科室
+                const departmentMatchResult = fuzzyMatch(suggestedDepartment, departments, false);
+                if (departmentMatchResult.item) {
+                    resultDiv.innerHTML += `<p style="color: green;">科室匹配成功: ${departmentMatchResult.item} (${departmentMatchResult.method})</p>`;
+                } else {
+                    resultDiv.innerHTML += `<p style="color: red;">科室匹配失败</p>`;
+                }
+            } else {
+                resultDiv.innerHTML += `<p style="color: red;">未提取到科室信息</p>`;
+                
+                // 显示所有正则表达式的匹配结果
+                resultDiv.innerHTML += `<p>各正则表达式匹配结果:</p><ul>`;
+                for (let i = 0; i < departmentPatterns.length; i++) {
+                    const pattern = departmentPatterns[i];
+                    const matches = [...aiResponse.matchAll(pattern)];
+                    resultDiv.innerHTML += `<li>Pattern ${i+1}: ${matches.length} 个匹配</li>`;
+                    matches.forEach((match, index) => {
+                        resultDiv.innerHTML += `<ul><li>Match ${index+1}: ${JSON.stringify(match)}</li></ul>`;
+                    });
+                }
+                resultDiv.innerHTML += `</ul>`;
+            }
+            
+            // 测试医生匹配
+            resultDiv.innerHTML += `<h4>医生匹配测试:</h4>`;
+            
+            // 尝试多种医生匹配正则表达式
+            const doctorPatterns = [
+                // 原始模式
+                /[-*]\s*\*\*医生\*\*：([^\s，,。！!\(\)\n\r\t]{2,10})(?:\s*\([^)]*\))?/g,
+                // 匹配 "- **医生**：111 (主任医师)" 格式
+                /[-*]\s*\*{2}医生\*{2}[:：]([^\s，,。！!\(\)\n\r\t]{2,10})/g,
+                // 匹配 "推荐医生：111" 格式
+                /(?:推荐)?\s*(?:医生)?[:：]?\s*([^\s，,。！!\(\)\n\r\t]{2,10})/g,
+                // 匹配 "医生111" 格式
+                /医生\s*([^\s，,。！!\(\)\n\r\t]{2,10})/g,
+            ];
+            
+            let suggestedDoctor = null;
+            let usedDoctorPattern = null;
+            
+            for (let i = 0; i < doctorPatterns.length; i++) {
+                const pattern = doctorPatterns[i];
+                const matches = aiResponse.matchAll(pattern);
+                for (const match of matches) {
+                    if (match[1]) {
+                        suggestedDoctor = match[1];
+                        usedDoctorPattern = `Pattern ${i+1}: ${pattern.toString()}`;
+                        break;
+                    }
+                }
+                if (suggestedDoctor) break;
+            }
+            
+            if (suggestedDoctor) {
+                resultDiv.innerHTML += `<p>提取到医生: <strong>${suggestedDoctor}</strong></p>`;
+                resultDiv.innerHTML += `<p>使用的正则表达式: ${usedDoctorPattern}</p>`;
+                
+                // 尝试匹配医生
+                const doctorMatchResult = fuzzyMatch(suggestedDoctor, doctors, true);
+                if (doctorMatchResult.item) {
+                    resultDiv.innerHTML += `<p style="color: green;">医生匹配成功: ${doctorMatchResult.item.dName} (${doctorMatchResult.method})</p>`;
+                } else {
+                    resultDiv.innerHTML += `<p style="color: red;">医生匹配失败</p>`;
+                }
+            } else {
+                resultDiv.innerHTML += `<p style="color: red;">未提取到医生信息</p>`;
+                
+                // 显示所有正则表达式的匹配结果
+                resultDiv.innerHTML += `<p>各正则表达式匹配结果:</p><ul>`;
+                for (let i = 0; i < doctorPatterns.length; i++) {
+                    const pattern = doctorPatterns[i];
+                    const matches = [...aiResponse.matchAll(pattern)];
+                    resultDiv.innerHTML += `<li>Pattern ${i+1}: ${matches.length} 个匹配</li>`;
+                    matches.forEach((match, index) => {
+                        resultDiv.innerHTML += `<ul><li>Match ${index+1}: ${JSON.stringify(match)}</li></ul>`;
+                    });
+                }
+                resultDiv.innerHTML += `</ul>`;
+            }
+            
+            document.getElementById('results').appendChild(resultDiv);
+        }
+    </script>
+</body>
+</html>
